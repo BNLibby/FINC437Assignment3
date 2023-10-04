@@ -4,20 +4,35 @@ import pickle as pk
 import os.path as path
 import pandas as pd
 
+# TODO: Create 2-stage regression for the following:
+#   Market Model
+#   3-Factor Model
+#   5-Factor Model
+#   6-Factor Model
+#   *Note: For each model must do 2 separate tests:
+#   1.) Use monthly data
+#   2.) Use daily data with 1-year moving window
+#   *Note: For each test must report t-stat and lambdas
+
+# TODO: Create overall regression, see Assignment3Overview.pdf Part C...good luck
+
 
 # Configure dictionary of dataframes for data, convert to pickle object
 def config_data(config_file, config_path, config_data_type, config_param):
-    pk_dict = {}
+    pk_dict = {}  # Create dictionary to store DataFrames
 
+    # Convert CSVData into DataFrames and store in dictionary
     for name in config_param:
         pk_dict[name] = pd.read_csv(config_path + name + config_data_type, dtype=object)
 
+    # Send dictionary object to pickle file for serialization
     with open(config_file, "wb") as pk_file:
         pk.dump(pk_dict, pk_file)
 
 
 # Main method, dictates flow of program
 def main(config, config_file, config_path, config_data_type, config_param):
+    # Check to see if config necessary; if not, check if data.dat exists; if not, config data.dat
     if config:
         config_data(config_file, config_path, config_data_type, config_param)
     elif path.exists(config_file):
