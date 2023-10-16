@@ -4,6 +4,7 @@ import pickle as pk
 import os.path as path
 import pandas as pd
 import statsmodels.api as st
+import numpy as np
 
 # TODO: Create 2-stage regression for the following:
 #   Market Model
@@ -44,9 +45,26 @@ def three_factor_model(pk_dict):
     y_axis_data: pd.DataFrame = pk_dict["25Ports_SizeBM_Monthly"]
 
     x_axis = st.add_constant(x_axis_data[["Mkt-RF", "SMB", "HML"]])
+
+    betas = {}
+    avg_excess_returns = {}
+
     for y_axis in list(y_axis_data.columns.values)[1:]:
         model = st.OLS(y_axis_data[y_axis].astype(float), x_axis.astype(float)).fit()
-        output_dict[y_axis] = [model.params, model.tvalues]
+        betas[y_axis] = model.params
+        # output_dict[y_axis] = [model.params, model.tvalues]
+
+        avg_excess_return = y_axis_data[y_axis].astype(float).mean() - x_axis_data.iloc[:, 4].astype(float).mean()
+        avg_excess_returns[y_axis] = avg_excess_return
+
+    avg_excess_returns_df = pd.DataFrame(list(avg_excess_returns.values()), columns=["AvgExcessReturn"])
+    betas_df = pd.DataFrame(betas).T.drop('const', axis=1)
+
+    model_2 = st.OLS(np.array(avg_excess_returns_df), np.array(st.add_constant(betas_df))).fit()
+    lambdas = model_2.params
+    print(betas)
+    print(avg_excess_returns.values())
+    print(lambdas)
 
 
 # 5-Factor Model
@@ -94,5 +112,3 @@ if __name__ == '__main__':
                     "48IndustryPorts_Daily", "48IndustryPorts_Monthly",
                     "Momentum_Daily", "Momentum_Monthly")
     main(config, config_file, config_path, config_data_type, config_param)
-
-
