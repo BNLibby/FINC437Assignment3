@@ -1,16 +1,16 @@
 
 # Imports
 import pickle as pk
-import os.path as path
 import pandas as pd
 import statsmodels.api as st
 import numpy as np
 from dateutil.relativedelta import relativedelta
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # TODO: Create overall regression, see Assignment3Overview.pdf Part C...good luck
 
 
+# Model to Store Data and Run Regressions Related to Fama-French Model
 class FFModel:
     def __init__(self, dat_file: str, config_path: str, config_file_type: str,
                  factor_fnames: tuple, portfolio_fnames: tuple,
@@ -97,6 +97,28 @@ class FFModel:
 
         return True
 
+    # Determine Which Model Data To Use
+    def determine_model(self, model_type: str, is_monthly=True):
+        # Determine Model Type And Store Appropriate IVs
+        if model_type == "Market" or model_type == "3Factor":
+            if is_monthly:
+                return self.factor_data["3Factor_Monthly"]
+            else:
+                return self.factor_data["3Factor_Daily"]
+        elif model_type == "5Factor":
+            if is_monthly:
+                return self.factor_data["5Factor_Monthly"]
+            else:
+                return self.factor_data["5Factor_Daily"]
+        elif model_type == "6Factor":
+            if is_monthly:
+                return self.factor_data["5Factor_Monthly"]
+            else:
+                return self.factor_data["5Factor_Daily"]
+        else:
+            print("Model Type Not Found")
+            return None
+
     # Whole Period 2-Stage Regression
     def wp_two_stage(self, model_type: str, is_monthly=True):
         # Retrieve Data From Storage
@@ -111,29 +133,8 @@ class FFModel:
         model_output: dict = {}
 
         # Store Constant Independent Variables(IV) Once Model Type Determined
-        x_axis_data = None
+        x_axis_data = self.determine_model(model_type, is_monthly)
         x_axis = None
-
-        # Determine Model Type And Store Appropriate IVs
-        if model_type == "Market" or model_type == "3Factor":
-            if is_monthly:
-                x_axis_data = self.factor_data["3Factor_Monthly"]
-            else:
-                x_axis_data = self.factor_data["3Factor_Daily"]
-        elif model_type == "5Factor":
-            if is_monthly:
-                x_axis_data = self.factor_data["5Factor_Monthly"]
-                x_axis = st.add_constant(x_axis_data[self.ff_factors[model_type]])
-            else:
-                x_axis_data = self.factor_data["5Factor_Daily"]
-        elif model_type == "6Factor":
-            if is_monthly:
-                x_axis_data = self.factor_data["5Factor_Monthly"]
-            else:
-                x_axis_data = self.factor_data["5Factor_Daily"]
-        else:
-            print("Model Type Not Found")
-            return False
 
         # Finish Adjusting Data Format Before Regression
         x_axis = st.add_constant(x_axis_data[self.ff_factors[model_type]])
@@ -183,29 +184,9 @@ class FFModel:
         # Store Constant Independent Variables(IV) Once Model Type Determined
         start_date = datetime.strptime(self.start_date, '%Y%m%d')
         end_date = start_date + relativedelta(years=self.window_years)
-        x_axis_data = None
+        x_axis_data = self.determine_model(model_type, is_monthly)
         filtered_x_axis_data = None
         x_axis = None
-
-        # Determine Model Type And Store Appropriate IVs
-        if model_type == "Market" or model_type == "3Factor":
-            if is_monthly:
-                x_axis_data = self.factor_data["3Factor_Monthly"]
-            else:
-                x_axis_data = self.factor_data["3Factor_Daily"]
-        elif model_type == "5Factor":
-            if is_monthly:
-                x_axis_data = self.factor_data["5Factor_Monthly"]
-            else:
-                x_axis_data = self.factor_data["5Factor_Daily"]
-        elif model_type == "6Factor":
-            if is_monthly:
-                x_axis_data = self.factor_data["5Factor_Monthly"]
-            else:
-                x_axis_data = self.factor_data["5Factor_Daily"]
-        else:
-            print("Model Type Not Found")
-            return False
 
         # Finish Adjusting Data Format Before Regression
         x_axis_data['Date'] = pd.to_datetime(x_axis_data['Date'], format='%Y%m%d')
