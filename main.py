@@ -44,6 +44,7 @@ def market_model(pk_dict, ports_to_test):
     '''
     model_output = {}
 
+    # Part A
     for portfolio in ports_to_test:
         y_axis_data: pd.DataFrame = pk_dict[portfolio]
 
@@ -63,7 +64,20 @@ def market_model(pk_dict, ports_to_test):
         model_2 = st.OLS(np.array(avg_excess_returns_df), np.array(st.add_constant(betas_df))).fit()
 
         model_output[portfolio] = [list(model_2.params), list(model_2.tvalues)]
+'''
+    # Part B
+    for portfolio in ports_to_test:
+        x_axis_data: pd.DataFrame = pk_dict["3Factor_Daily"]
+        x_axis = st.add_constant(x_axis_data[["Mkt-RF"]])
 
+        date_range = x_axis_data["Date"]
+        start_date_locs = [0]
+        cur_start_date = "19630701"
+        previous_date = ""
+        for date in date_range:
+            if int(date[:4]) == int(cur_start_date[:4]) + 1:
+                if int(date[5:6]) 
+'''
     return model_output
 
 
