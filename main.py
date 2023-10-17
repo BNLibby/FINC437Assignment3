@@ -1,4 +1,3 @@
-
 # Imports
 import pickle as pk
 import pandas as pd
@@ -6,6 +5,8 @@ import statsmodels.api as st
 import numpy as np
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
+import matplotlib.pyplot as plt
+
 
 # TODO: Create overall regression, see Assignment3Overview.pdf Part C...good luck
 
@@ -98,7 +99,7 @@ class FFModel:
         return True
 
     # Determine Which Model Data To Use
-    def determine_model(self, model_type: str, is_monthly=True):
+    def determine_model(self, model_type: str, is_monthly: bool = True):
         # Determine Model Type And Store Appropriate IVs
         if model_type == "Market" or model_type == "3Factor":
             if is_monthly:
@@ -120,7 +121,7 @@ class FFModel:
             return None
 
     # Whole Period 2-Stage Regression
-    def wp_two_stage(self, model_type: str, is_monthly=True):
+    def wp_two_stage(self, model_type: str, is_monthly: bool = True):
         # Retrieve Data From Storage
         self.retrieve_data()
 
@@ -154,7 +155,7 @@ class FFModel:
                 port_combo_betas[port_combo] = stage1_regression.params
 
                 avg_alpha = y_axis_data[port_combo].astype(float).mean() - \
-                                    x_axis_data.iloc[:, 4].astype(float).mean()
+                            x_axis_data.iloc[:, 4].astype(float).mean()
                 port_combo_avg_alpha[port_combo] = avg_alpha
 
             avg_alpha_df = pd.DataFrame(list(port_combo_avg_alpha.values()), columns=["AvgAlpha"])
@@ -169,7 +170,7 @@ class FFModel:
         return model_output
 
     # Moving Window 2-Stage Regression
-    def mw_two_stage(self, model_type: str, is_monthly=False):
+    def mw_two_stage(self, model_type: str, is_monthly: bool = False):
         # Retrieve Data From Storage
         self.retrieve_data()
 
@@ -211,7 +212,7 @@ class FFModel:
                     port_combo_betas[port_combo] = stage1_regression.params
 
                     avg_alpha = filtered_y_data[port_combo].astype(float).mean() - \
-                                        filtered_x_axis_data.iloc[:, 4].astype(float).mean()
+                                filtered_x_axis_data.iloc[:, 4].astype(float).mean()
                     port_combo_avg_alpha[port_combo] = avg_alpha
 
                 avg_alpha_df = pd.DataFrame(list(port_combo_avg_alpha.values()), columns=["AvgAlpha"])
@@ -221,6 +222,74 @@ class FFModel:
 
                 model_output[portfolio_file + self.time_delimiters[is_monthly]] = [list(stage2_regression.params),
                                                                                    list(stage2_regression.tvalues)]
+
+            # Move Window By 1 Month
+            start_date += relativedelta(months=self.step_months)
+            end_date = start_date + relativedelta(years=self.window_years)
+
+        # Return Model Output
+        return model_output
+
+    # Moving Window 2_stage Regression Out Of Sample
+    def mw_two_stage_oos(self, model_type: str, is_monthly: bool = False):
+        # Retrieve Data From Storage
+        self.retrieve_data()
+
+        # Dictionary To Store Model Statistics For Each Portfolio Tested
+        '''
+        Structure ->
+        Key: str = portfolio -> portfolio name
+        Value: nested tuple = [[lambdas],[t-stats]] -> 2nd stage regression
+        '''
+        model_output: dict = {}
+
+        # Store Constant Independent Variables(IV) Once Model Type Determined
+        start_date = datetime.strptime(self.start_date, '%Y%m%d')
+        end_date = start_date + relativedelta(years=self.window_years)
+        x_axis_data = self.determine_model(model_type, is_monthly)
+        filtered_x_axis_data = None
+        x_axis = None
+
+        # Finish Adjusting Data Format Before Regression
+        x_axis_data['Date'] = pd.to_datetime(x_axis_data['Date'], format='%Y%m%d')
+
+        # TODO: Plot Whole Portfolio Avg. Predicted Returns vs. Whole Portfolio Avg. Realized Returns
+
+        # Perform 2-Stage Moving Window Regression
+        while end_date <= x_axis_data['Date'].max() - relativedelta(months=self.step_months):
+            # Refactor Data Before Performing Regression
+            filtered_x_axis_data = x_axis_data[(x_axis_data['Date'] >= start_date) & (x_axis_data['Date'] <= end_date)]
+            x_axis = st.add_constant(filtered_x_axis_data[self.ff_factors[model_type]])
+
+            # Perform 2-Stage Regression
+            whole_port_is_avg_ret = []
+            whole_port_oos_avg_ret = []
+            for portfolio_file in self.portfolio_fnames:
+                # Store Dependent Variable(DV) Data For Regression
+                y_axis_data: pd.DataFrame = self.portfolio_data[portfolio_file + self.time_delimiters[is_monthly]]
+                y_axis_data['Date'] = pd.to_datetime(y_axis_data['Date'], format='%Y%m%d')
+                filtered_y_data = y_axis_data[(y_axis_data['Date'] >= start_date) & (y_axis_data['Date'] <= end_date)]
+
+                port_combo_betas = {}
+                is_avg_return = []
+                oos_avg_return = []
+                for port_combo in tuple(filtered_y_data.columns.values)[1:]:
+                    stage1_regression = st.OLS(filtered_y_data[port_combo].astype(float), x_axis.astype(float)).fit()
+                    port_combo_betas[port_combo] = stage1_regression.params
+
+                    oos_window_start = end_date
+                    oos_window_end = oos_window_start + relativedelta(months=self.step_months)
+                    oos_window = y_axis_data[(y_axis_data['Date'] >= oos_window_start) &
+                                             (y_axis_data['Date'] <= oos_window_end)]
+
+                    is_avg_return.append(filtered_y_data[port_combo].astype(float).mean())
+                    oos_avg_return.append(oos_window[port_combo].astype(float).mean())
+
+            # Plot OOS Avg Returns vs. IS Avg Returns
+            fig = plt.figure()
+            ax1 = fig.add_subplot(111)
+            ax1.scatter(whole_port_is_avg_ret, whole_port_oos_avg_ret, label='returns')
+            plt.show()
 
             # Move Window By 1 Month
             start_date += relativedelta(months=self.step_months)
@@ -239,7 +308,7 @@ def main():
     factor_fnames: tuple = ("3Factor_", "5Factor_")
     portfolio_fnames: tuple = ("25Ports_InvBM_", "25Ports_OpBM_", "25Ports_OpInv_", "25Ports_SizeBM_",
                                "25Ports_SizeInv_", "25Ports_SizeOp_", "48IndustryPorts_")
-    ff_factors: dict = {"Market":   ["Mkt-RF"],
+    ff_factors: dict = {"Market": ["Mkt-RF"],
                         "3Factor": ["Mkt-RF", "SMB", "HML"],
                         "5Factor": ["Mkt-RF", "SMB", "HML", "RMW", "CMA"],
                         "6Factor": ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "Mom"]}
@@ -292,6 +361,12 @@ def main():
             for t_val in model_output[key][1]:
                 print(f'{t_val:.4f}', end=" ; ")
             print()
+
+    # Part C
+    print("^^^^^^^^^^^^^^^^^^^^^^^")
+    print("MOVING WINDOW PROGRESSION")
+    for model in models_to_test:
+        model_output: dict = ff_model.mw_two_stage_oos(model, False)
 
 
 # Main method and configuration settings
