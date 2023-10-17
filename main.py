@@ -33,48 +33,143 @@ def config_data(config_file, config_path, config_data_type, config_param):
 
 
 # Market Model
-def market_model(pk_dict):
-    pass
+def market_model(pk_dict, ports_to_test):
+    x_axis_data: pd.DataFrame = pk_dict["3Factor_Monthly"]
+    x_axis = st.add_constant(x_axis_data[["Mkt-RF"]])
+
+    '''
+    model_output structure
+    Key: str = portfolio -> portfolio name
+    Value: nested list = [[lambdas],[t-stats]] -> 2nd stage regression
+    '''
+    model_output = {}
+
+    for portfolio in ports_to_test:
+        y_axis_data: pd.DataFrame = pk_dict[portfolio]
+
+        betas = {}
+        avg_excess_returns = {}
+
+        for y_axis in list(y_axis_data.columns.values)[1:]:
+            model = st.OLS(y_axis_data[y_axis].astype(float), x_axis.astype(float)).fit()
+            betas[y_axis] = model.params
+
+            avg_excess_return = y_axis_data[y_axis].astype(float).mean() - x_axis_data.iloc[:, 4].astype(float).mean()
+            avg_excess_returns[y_axis] = avg_excess_return
+
+        avg_excess_returns_df = pd.DataFrame(list(avg_excess_returns.values()), columns=["AvgExcessReturn"])
+        betas_df = pd.DataFrame(betas).T.drop('const', axis=1)
+
+        model_2 = st.OLS(np.array(avg_excess_returns_df), np.array(st.add_constant(betas_df))).fit()
+
+        model_output[portfolio] = [list(model_2.params), list(model_2.tvalues)]
+
+    return model_output
 
 
 # 3-Factor Model
-def three_factor_model(pk_dict):
-    output_dict = {}
-
+def three_factor_model(pk_dict, ports_to_test):
     x_axis_data: pd.DataFrame = pk_dict["3Factor_Monthly"]
-    y_axis_data: pd.DataFrame = pk_dict["25Ports_SizeBM_Monthly"]
-
     x_axis = st.add_constant(x_axis_data[["Mkt-RF", "SMB", "HML"]])
 
-    betas = {}
-    avg_excess_returns = {}
+    '''
+        model_output structure
+        Key: str = portfolio -> portfolio name
+        Value: nested list = [[lambdas],[t-stats]] -> 2nd stage regression
+        '''
+    model_output = {}
 
-    for y_axis in list(y_axis_data.columns.values)[1:]:
-        model = st.OLS(y_axis_data[y_axis].astype(float), x_axis.astype(float)).fit()
-        betas[y_axis] = model.params
-        # output_dict[y_axis] = [model.params, model.tvalues]
+    for portfolio in ports_to_test:
+        y_axis_data: pd.DataFrame = pk_dict[portfolio]
 
-        avg_excess_return = y_axis_data[y_axis].astype(float).mean() - x_axis_data.iloc[:, 4].astype(float).mean()
-        avg_excess_returns[y_axis] = avg_excess_return
+        betas = {}
+        avg_excess_returns = {}
 
-    avg_excess_returns_df = pd.DataFrame(list(avg_excess_returns.values()), columns=["AvgExcessReturn"])
-    betas_df = pd.DataFrame(betas).T.drop('const', axis=1)
+        for y_axis in list(y_axis_data.columns.values)[1:]:
+            model = st.OLS(y_axis_data[y_axis].astype(float), x_axis.astype(float)).fit()
+            betas[y_axis] = model.params
 
-    model_2 = st.OLS(np.array(avg_excess_returns_df), np.array(st.add_constant(betas_df))).fit()
-    lambdas = model_2.params
-    print(betas)
-    print(avg_excess_returns.values())
-    print(lambdas)
+            avg_excess_return = y_axis_data[y_axis].astype(float).mean() - x_axis_data.iloc[:, 4].astype(float).mean()
+            avg_excess_returns[y_axis] = avg_excess_return
+
+        avg_excess_returns_df = pd.DataFrame(list(avg_excess_returns.values()), columns=["AvgExcessReturn"])
+        betas_df = pd.DataFrame(betas).T.drop('const', axis=1)
+
+        model_2 = st.OLS(np.array(avg_excess_returns_df), np.array(st.add_constant(betas_df))).fit()
+
+        model_output[portfolio] = [list(model_2.params), list(model_2.tvalues)]
+
+    return model_output
 
 
 # 5-Factor Model
-def five_factor_model(pk_dict):
-    pass
+def five_factor_model(pk_dict, ports_to_test):
+    x_axis_data: pd.DataFrame = pk_dict["5Factor_Monthly"]
+    x_axis = st.add_constant(x_axis_data[["Mkt-RF", "SMB", "HML", "RMW", "CMA"]])
+
+    '''
+    model_output structure
+    Key: str = portfolio -> portfolio name
+    Value: nested list = [[lambdas],[t-stats]] -> 2nd stage regression
+    '''
+    model_output = {}
+
+    for portfolio in ports_to_test:
+        y_axis_data: pd.DataFrame = pk_dict[portfolio]
+
+        betas = {}
+        avg_excess_returns = {}
+
+        for y_axis in list(y_axis_data.columns.values)[1:]:
+            model = st.OLS(y_axis_data[y_axis].astype(float), x_axis.astype(float)).fit()
+            betas[y_axis] = model.params
+
+            avg_excess_return = y_axis_data[y_axis].astype(float).mean() - x_axis_data.iloc[:, 4].astype(float).mean()
+            avg_excess_returns[y_axis] = avg_excess_return
+
+        avg_excess_returns_df = pd.DataFrame(list(avg_excess_returns.values()), columns=["AvgExcessReturn"])
+        betas_df = pd.DataFrame(betas).T.drop('const', axis=1)
+
+        model_2 = st.OLS(np.array(avg_excess_returns_df), np.array(st.add_constant(betas_df))).fit()
+
+        model_output[portfolio] = [list(model_2.params), list(model_2.tvalues)]
+
+    return model_output
 
 
 # 6-Factor Model
-def six_factor_model(pk_dict):
-    pass
+def six_factor_model(pk_dict, ports_to_test):
+    x_axis_data: pd.DataFrame = pk_dict["5Factor_Monthly"]
+    x_axis = st.add_constant(x_axis_data[["Mkt-RF", "SMB", "HML", "RMW", "CMA", "Mom"]])
+
+    '''
+    model_output structure
+    Key: str = portfolio -> portfolio name
+    Value: nested list = [[lambdas],[t-stats]] -> 2nd stage regression
+    '''
+    model_output = {}
+
+    for portfolio in ports_to_test:
+        y_axis_data: pd.DataFrame = pk_dict[portfolio]
+
+        betas = {}
+        avg_excess_returns = {}
+
+        for y_axis in list(y_axis_data.columns.values)[1:]:
+            model = st.OLS(y_axis_data[y_axis].astype(float), x_axis.astype(float)).fit()
+            betas[y_axis] = model.params
+
+            avg_excess_return = y_axis_data[y_axis].astype(float).mean() - x_axis_data.iloc[:, 4].astype(float).mean()
+            avg_excess_returns[y_axis] = avg_excess_return
+
+        avg_excess_returns_df = pd.DataFrame(list(avg_excess_returns.values()), columns=["AvgExcessReturn"])
+        betas_df = pd.DataFrame(betas).T.drop('const', axis=1)
+
+        model_2 = st.OLS(np.array(avg_excess_returns_df), np.array(st.add_constant(betas_df))).fit()
+
+        model_output[portfolio] = [list(model_2.params), list(model_2.tvalues)]
+
+    return model_output
 
 
 # Main method, dictates flow of program
@@ -86,10 +181,13 @@ def main(config, config_file, config_path, config_data_type, config_param):
     elif path.exists(config_file):
         with open("data.dat", "rb") as pickle_file:
             pk_dict = pk.load(pickle_file)
-            market_model(pk_dict)
-            three_factor_model(pk_dict)
-            five_factor_model(pk_dict)
-            six_factor_model(pk_dict)
+            ports_to_test = ["25Ports_InvBM_Monthly", "25Ports_OpBM_Monthly", "25Ports_OpInv_Monthly",
+                             "25Ports_SizeBM_Monthly", "25Ports_SizeInv_Monthly", "25Ports_SizeOp_Monthly",
+                             "48IndustryPorts_Monthly"]
+            mkt_data = market_model(pk_dict, ports_to_test)
+            three_factor_data = three_factor_model(pk_dict, ports_to_test)
+            five_factor_data = five_factor_model(pk_dict, ports_to_test)
+            six_factor_data = six_factor_model(pk_dict, ports_to_test)
     else:
         config_data(config_file, config_path, config_data_type, config_param)
         main(False, config_file, config_path, config_data_type, config_param)
@@ -102,13 +200,12 @@ if __name__ == '__main__':
     config_path = "./CSVDataSets/"
     config_data_type = ".csv"
     config_param = ("3Factor_Daily", "3Factor_Monthly",
-                    "5Factor_Daily", "5Factor_monthly",
+                    "5Factor_Daily", "5Factor_Monthly",
                     "25Ports_InvBM_Daily", "25Ports_InvBM_Monthly",
                     "25Ports_OpBM_Daily", "25Ports_OpBM_Monthly",
                     "25Ports_OpInv_Daily", "25Ports_OpInv_Monthly",
                     "25Ports_SizeBM_Daily", "25Ports_SizeBM_Monthly",
                     "25Ports_SizeInv_Daily", "25Ports_SizeInv_Monthly",
                     "25Ports_SizeOp_Daily", "25Ports_SizeOp_Monthly",
-                    "48IndustryPorts_Daily", "48IndustryPorts_Monthly",
-                    "Momentum_Daily", "Momentum_Monthly")
+                    "48IndustryPorts_Daily", "48IndustryPorts_Monthly")
     main(config, config_file, config_path, config_data_type, config_param)
